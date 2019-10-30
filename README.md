@@ -1,6 +1,5 @@
 # node-browser-webdriver
 
-[![NPM version](https://badge.fury.io/js/swagger-ui.svg)](http://badge.fury.io/js/node-browser-webdriver)
 ![Docker pulls](https://img.shields.io/docker/pulls/devside/node-browser-webdriver.svg)
 
 This repository builds multiple Docker images for different node and browser versions.<br/>
