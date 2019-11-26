@@ -5,15 +5,22 @@ const { readFile, writeFile } = require('fs').promises
 const RETRY_HTTP = 3
 const RETRY_TIMEOUT_FACTOR = 2000
 const currentDate = new Date().toISOString().substring(0, 10)
+const TAG_REGEX = /^chrome([0-9.]+)-node([0-9.]+)/
 
 function stringifyTag (chromeVersion, nodeVersion) {
   return `chrome${chromeVersion}-node${nodeVersion}`
 }
 
 function parseTag (tag) {
-  const [,chromeVersion,nodeVersion] = tag.match(/chrome(\w+)-node(\w+)/) || []
+  const match = tag.match(TAG_REGEX)
 
-  return [chromeVersion, nodeVersion]
+  if (match) {
+    const [,chromeVersion,nodeVersion] = tag.match(TAG_REGEX)
+
+    return [chromeVersion, nodeVersion]
+  }
+
+  return null
 }
 
 async function request(type, ...params) {
@@ -149,7 +156,7 @@ async function chromeDockerfiles() {
   const nodeVersions = filterLastestNodeVersionPerMajorVersion(latestNodeVersions, activeNodeMajorVersions).map(removeVersionPrefix)
 
   const currentVersions = nodeVersions.map(nodeVersion => [chromeVersion, nodeVersion])
-  const existingVersions = existingTags.map(parseTag)
+  const existingVersions = existingTags.map(parseTag).filter(x => x !== null)
 
   const newVersions = currentVersions.filter(
     ([chromeVersion, nodeVersion]) => !existingVersions.some(
@@ -159,6 +166,13 @@ async function chromeDockerfiles() {
 
   if (!newVersions.length) {
     console.info('All versions/tags are already generated.')
+    return
+  }
+
+  console.info('newVersions', newVersions)
+
+  if (process.env.CI_COMMIT_REF_NAME !== `master`) {
+    console.info('Dockerfile generation only happens on master branch.')
     return
   }
 
