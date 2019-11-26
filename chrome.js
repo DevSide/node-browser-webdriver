@@ -171,7 +171,7 @@ async function chromeDockerfiles() {
 
   console.info('newVersions', newVersions)
 
-  if (process.env.CI_COMMIT_REF_NAME !== `master`) {
+  if (process.env.TRAVIS_BRANCH !== `master`) {
     console.info('Dockerfile generation only happens on master branch.')
     return
   }
