@@ -124,6 +124,17 @@ function filterLastestNodeVersionPerMajorVersion(nodeVersions, majorVersions = [
   return result
 }
 
+async function doesDockerNodeExist (nodeVersion) {
+  try {
+    await request(`json`, `https://registry.hub.docker.com/v1/repositories/node/tags/${nodeVersion}`)
+
+    return true
+  } catch (error) {
+    console.error(error)
+    return false
+  }
+}
+
 async function createTagWithDockerfile (tag, content) {
   await writeFile(`./Dockerfile`, content)
 
@@ -155,7 +166,10 @@ async function chromeDockerfiles() {
   const chromedriverVersion = await findChromeDriverVersion(chromeVersion)
   const nodeVersions = filterLastestNodeVersionPerMajorVersion(latestNodeVersions, activeNodeMajorVersions).map(removeVersionPrefix)
 
-  const currentVersions = nodeVersions.map(nodeVersion => [chromeVersion, nodeVersion])
+  const nodeVersionsExist = await Promise.all(nodeVersions.map(doesDockerNodeExist))
+  const currentVersions = nodeVersions
+    .filter((_, i) => nodeVersionsExist[i])
+    .map(nodeVersion => [chromeVersion, nodeVersion])
   const existingVersions = existingTags.map(parseTag).filter(x => x !== null)
 
   const newVersions = currentVersions.filter(
@@ -171,11 +185,6 @@ async function chromeDockerfiles() {
 
   console.info('newVersions', newVersions)
 
-  if (process.env.TRAVIS_BRANCH !== `master`) {
-    console.info('Dockerfile generation only happens on master branch.')
-    return
-  }
-
   const template = (await readFile('./Dockerfile-chrome.template')).toString()
 
   for await (const [chromeVersion,nodeVersion] of newVersions) {
@@ -186,7 +195,12 @@ async function chromeDockerfiles() {
 
     const tag = stringifyTag(chromeVersion, nodeVersion)
 
-    await createTagWithDockerfile(tag, content)
+    if (process.env.TRAVIS_BRANCH === `master`) {
+      await createTagWithDockerfile(tag, content)
+    } else {
+      console.info('Dockerfile generation only happens on master branch.')
+      console.info(tag, content)
+    }
   }
 }
 
